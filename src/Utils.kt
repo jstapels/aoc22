@@ -14,3 +14,11 @@ fun readInput(name: String) = File("src", "$name.txt")
 fun String.md5() = BigInteger(1, MessageDigest.getInstance("MD5").digest(toByteArray()))
     .toString(16)
     .padStart(32, '0')
+
+/**
+ * Quick assertion check.
+ */
+fun <T> checkThat(actual: T, expected: T) {
+    if (actual != expected)
+        throw AssertionError("Actual $actual does not equal $expected")
+}
