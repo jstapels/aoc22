@@ -1,7 +1,6 @@
 
-const val DAY = 1
-
 fun main() {
+    val day = 1
 
     fun parseInput(input: List<String>) =
         input
@@ -17,11 +16,11 @@ fun main() {
     }
 
     // test if implementation meets criteria from the description, like:
-    val testInput = readInput("Day${DAY}_test")
+    val testInput = readInput("Day${day.pad(2)}_test")
     checkTest(1) { part1(testInput) }
     checkTest(1) { part2(testInput) }
 
-    val input = readInput("Day${DAY}")
+    val input = readInput("Day${day.pad(2)}")
     solution { part1(input) }
     solution { part2(input) }
 }

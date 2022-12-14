@@ -3,6 +3,9 @@ import java.math.BigInteger
 import java.security.MessageDigest
 import kotlin.system.measureTimeMillis
 
+fun Int.pad(n: Int) =
+    this.toString().padStart(n, '0')
+
 /**
  * Reads lines from the given input txt file.
  */
@@ -24,17 +27,20 @@ fun <T> checkThat(actual: T, expected: T) {
         throw AssertionError("Actual $actual does not equal $expected")
 }
 
+var testCount = 1
 fun <T> checkTest(expected: T, runner: () -> T) {
     var actual: T
     val ms = measureTimeMillis { actual = runner() }
     val good = actual == expected
     val out = if (good) "Pass! 🎉" else "Fail! ❌"
-    println("Executed test in $ms ms | $actual == $expected | $out")
-    if (! good) throw IllegalStateException()
+    println("Executed test ${testCount++} in $ms ms | $actual == $expected | $out")
+    if (! good) throw AssertionError()
 }
+
+var solutionCount = 1
 fun <T> solution(runner: () -> T) {
     var result: T
-    var ms = measureTimeMillis { result = runner() }
+    val ms = measureTimeMillis { result = runner() }
     println("--------------------------------")
-    println("Solution in $ms ms | $result")
+    println("Solution ${solutionCount++} in $ms ms | $result")
 }
