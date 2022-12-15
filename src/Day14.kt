@@ -23,25 +23,33 @@ fun main() {
         this.split(",")
             .let { Pos(it[0].toInt(), it[1].toInt()) }
 
-    fun Iterable<Pos>.fallTo(p: Pos) =
-        this.filter { it.x == p.x && it.y >= p.y}
-            .minByOrNull { it.y }
-            ?.let { Pos(it.x, it.y - 1) }
+    fun List<List<Char>>.fallTo(p: Pos, height: Boolean = false): Pos? {
+        var y = p.y + 1
+        val col = this[p.x];
+        return (y until col.size).firstOrNull { col[it] != '.'}
+            ?.let { Pos(p.x, it - 1) }
+            ?: if (height) Pos(p.x, col.size - 1) else null
+    }
 
+    fun List<List<Char>>.notBlocked(p: Pos) =
+        p.x < this.size && p.y < this[p.x].size && this[p.x][p.y] == '.'
 
-    fun List<Pos>.pourSand(start: Pos = Pos(500, 0)): Int {
-        val fill = this.toMutableSet()
+    fun List<MutableList<Char>>.sand(p: Pos) =
+        this[p.x].set(p.y, 'o')
+
+    fun MutableList<MutableList<Char>>.pourSand(height: Boolean = false): Int {
+        val start = Pos(500, -1)
         var sand = 0
-
-        var cur = fill.fallTo(start)
-        while (cur != null) {
+        var cur = this.fallTo(start, height)
+        while (cur != start) {
+            if (cur == null) return sand
             cur = when {
-                ! fill.contains(cur.left) -> fill.fallTo(cur.left)
-                ! fill.contains(cur.right) -> fill.fallTo(cur.right)
+                this.notBlocked(cur.left) -> this.fallTo(cur.left, height)
+                this.notBlocked(cur.right) -> this.fallTo(cur.right, height)
                 else -> {
-                    fill.add(cur)
+                    this.sand(cur)
                     sand++
-                    fill.fallTo(start)
+                    this.fallTo(start, height)
                 }
             }
         }
@@ -49,58 +57,29 @@ fun main() {
         return sand
     }
 
-    fun parseInput(input: List<String>) =
-        input.flatMap { line ->
+    fun parseInput(input: List<String>): MutableList<MutableList<Char>> {
+        val points = input.flatMap { line ->
             line.split(" -> ")
                 .map { it.toPos() }
                 .windowed(2)
                 .flatMap { it[0].to(it[1]) }
                 .distinct()
         }
+        val maxY = points.maxOf { it.y }
+        val maxX = points.maxOf { it.x } + maxY
+
+        val data: MutableList<MutableList<Char>> = MutableList(maxX + 2) { MutableList(maxY + 2) { '.' } }
+        points.forEach { (x, y) -> data[x][y] = '#' }
+        return data
+    }
 
     fun part1(input: List<String>) =
         parseInput(input)
             .pourSand()
 
-
-    fun MutableMap<Int, NavigableSet<Int>>.add(p: Pos) =
-        this.getOrPut(p.x) { TreeSet() }.add(p.y)
-
-    fun MutableMap<Int, NavigableSet<Int>>.fallToFloor(p: Pos, height: Int) =
-        this[p.x]?.ceiling(p.y)
-            ?.let { Pos(p.x, it - 1) }
-            ?: Pos(p.x, height - 1)
-
-    fun MutableMap<Int, NavigableSet<Int>>.contains(p: Pos) =
-        this[p.x]?.contains(p.y) ?: false
-
-
-    fun List<Pos>.pourMoreSand(start: Pos = Pos(500, -1)): Int {
-        val fill = mutableMapOf<Int, NavigableSet<Int>>()
-        this.map { fill.getOrPut(it.x) { TreeSet() }.add(it.y) }
-        var sand = 0
-        val height = this.maxOf { it.y } + 2
-
-        var cur = fill.fallToFloor(start, height)
-        while (cur != start) {
-            cur = when {
-                ! fill.contains(cur.left) && cur.y < (height - 1) -> fill.fallToFloor(cur.left, height)
-                ! fill.contains(cur.right) && cur.y < (height - 1) -> fill.fallToFloor(cur.right, height)
-                else -> {
-                    fill.add(cur)
-                    sand++
-                    fill.fallToFloor(start, height)
-                }
-            }
-        }
-
-        return sand
-    }
-
-
     fun part2(input: List<String>) =
         parseInput(input)
-            .pourMoreSand()
+            .pourSand(true)
 
 
     // test if implementation meets criteria from the description, like:
