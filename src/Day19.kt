@@ -2,57 +2,63 @@
 val day = 19
 
 data class Resources(
-    val ore: Int = 0, val clay: Int = 0, val obsidian: Int = 0, val geode: Int = 0,
-    val oreBots: Int = 1, val clayBots: Int = 0, val obsidianBots: Int = 0, val geodeBots: Int = 0
+    val ore: Int = 0, val clay: Int = 0, val obs: Int = 0, val geode: Int = 0,
+    val oreRate: Int = 1, val clayRate: Int = 0, val obsRate: Int = 0, val geodeRate: Int = 0
 ) {
-    fun tick() = copy(ore = ore + oreBots, clay = clay + clayBots, obsidian = obsidian + obsidianBots, geode = geode + geodeBots)
+    fun tick() =
+        copy(ore = ore + oreRate, clay = clay + clayRate, obs = obs + obsRate, geode = geode + geodeRate)
+
+    fun dump() {
+        if (oreRate > 0) println("$oreRate ore-collecting robot collects $oreRate ore; you now have ${ore} ore.")
+        if (clayRate > 0) println("$clayRate clay-collecting robot collects $clayRate clay; you now have ${clay} clay.")
+        if (obsRate > 0) println("$obsRate obs-collecting robot collects $obsRate obs; you now have ${obs} obs.")
+        if (geodeRate > 0) println("$geodeRate geode-collecting robot collects $geodeRate geode; you now have ${geode} geode.")
+    }
+
 }
 
 abstract class Plan {
     abstract fun canBuild(r: Resources): Boolean
     abstract fun build(r: Resources): Resources
     abstract fun collect(r: Resources): Resources
-    abstract fun needLevel(m: Int, f: Factory, r: Resources): Double
+
 }
 
 
 data class OrePlan(val ore: Int): Plan() {
     override fun canBuild(r: Resources) = r.ore >= ore
-    override fun build(r: Resources) = r.copy(ore = r.ore - ore, oreBots = r.oreBots + 1)
+
+    override fun build(r: Resources) = r.copy(ore = r.ore - ore, oreRate = r.oreRate + 1)
     override fun collect(r: Resources) = r.copy(ore = r.ore + 1)
 
-    override fun needLevel(m: Int, f: Factory, r: Resources) =
-        ((f.geodePlan.ore + f.geodePlan.obsidian * f.obsidianPlan.ore + f.obsidianPlan.clay * f.clayPlan.ore).toDouble() - r.ore) /
-                (r.oreBots * m)
 }
 
 data class ClayPlan(val ore: Int): Plan() {
     override fun canBuild(r: Resources) = r.ore >= ore
-    override fun build(r: Resources) = r.copy(ore = r.ore - ore, clayBots = r.clayBots + 1)
+    override fun build(r: Resources) = r.copy(ore = r.ore - ore, clayRate = r.clayRate + 1)
     override fun collect(r: Resources) = r.copy(clay = r.clay + 1)
-    override fun needLevel(m: Int, f: Factory, r: Resources) =
-        ((f.geodePlan.obsidian * f.obsidianPlan.clay).toDouble() - r.clay) /
-                (r.clayBots * m + 1)
 }
 
 data class ObsidianPlan(val ore: Int, val clay: Int): Plan() {
     override fun canBuild(r: Resources) = r.ore >= ore && r.clay >= clay
-    override fun build(r: Resources) = r.copy(ore = r.ore - ore, clay = r.clay - clay, obsidianBots = r.obsidianBots + 1)
-    override fun collect(r: Resources) = r.copy(obsidian = r.obsidian + 1)
-    override fun needLevel(m: Int, f: Factory, r: Resources) =
-        (f.geodePlan.obsidian.toDouble() - r.obsidian) / (r.obsidianBots * m + 1)
+    override fun build(r: Resources) = r.copy(ore = r.ore - ore, clay = r.clay - clay, obsRate = r.obsRate + 1)
+    override fun collect(r: Resources) = r.copy(obs = r.obs + 1)
 }
 
 data class GeodePlan(val ore: Int, val obsidian: Int): Plan() {
-    override fun canBuild(r: Resources) = r.ore >= ore && r.obsidian >= obsidian
-    override fun build(r: Resources) = r.copy(ore = r.ore - ore, obsidian = r.obsidian - obsidian, geodeBots = r.geodeBots + 1)
-    override fun collect(r: Resources) = r.copy(obsidian = r.obsidian + 1)
-    override fun needLevel(m: Int, f: Factory, r: Resources) =
-        1.0 / (r.geodeBots + 1)
+    override fun canBuild(r: Resources) = r.ore >= ore && r.obs >= obsidian
+    override fun build(r: Resources) = r.copy(ore = r.ore - ore, obs = r.obs - obsidian, geodeRate = r.geodeRate + 1)
+    override fun collect(r: Resources) = r.copy(obs = r.obs + 1)
 }
 
-data class Factory(val blueprint: Int, val orePlan: OrePlan, val clayPlan: ClayPlan, val obsidianPlan: ObsidianPlan, val geodePlan: GeodePlan) {
-    val plans = listOf(orePlan, clayPlan, obsidianPlan, geodePlan)
+data class NoPlan(val ore: Int = 0): Plan() {
+    override fun canBuild(r: Resources) = true
+    override fun build(r: Resources) = r
+    override fun collect(r: Resources) = r
+}
+
+data class Factory(val blueprint: Int, val orePlan: OrePlan, val clayPlan: ClayPlan, val obsPlan: ObsidianPlan, val geodePlan: GeodePlan) {
+    val plans = listOf(NoPlan(), orePlan, clayPlan, obsPlan, geodePlan)
 }
 
 
@@ -79,37 +85,59 @@ fun main() {
     }
 
 
-    fun qualityLevel(minutes: Int, factory: Factory, resources: Resources): Int {
-        println("Minutes $minutes:    ($resources)")
-        var r = resources.tick()
-        if (minutes == 24) return resources.geodeBots
+    fun runIt(mins: Int, f: Factory): Int {
 
-        val bestPlan = factory.plans
-            .maxBy { p -> p.needLevel(24 - minutes, factory, resources)
-                .also { println("     ? $p -> $it")} }
+        var search = mutableListOf(Resources())
+        val visited = mutableSetOf<Resources>()
+        var maxGeodes = 0
 
-        println("  picking plan $bestPlan")
+        val otherPlans = f.plans.reversed().drop(1)
 
-        if (bestPlan.canBuild(r))
-            r = bestPlan.build(r)
+        (1..mins).forEach { m ->
+            val nextSearch = mutableListOf<Resources>()
 
-        return qualityLevel(minutes + 1, factory, r)
-            .also { println("Minute $minutes ($it): $resources -> $r") }
+            while (search.isNotEmpty()) {
+                val r = search.removeFirst()
 
-//        return factory.plans.reversed()
-//            .maxOf {
-//                if (it.canBuild(r)) {
-//                    r = it.build(r)
-//                    qualityLevel(minutes + 1, factory, r)
-//                } else qualityLevel(minutes + 1, factory, r)
-//            }.also { println("Minute $minutes ($it): $resources -> $r") }
+                if ((r.geode + r.geodeRate) < maxGeodes) continue
+                if (r in visited) continue
+                visited.add(r)
+
+                val collected = r.tick()
+
+                if (f.geodePlan.canBuild(r)) {
+                    nextSearch.add(f.geodePlan.build(collected))
+                } else {
+                    otherPlans
+                        .filter { it.canBuild(r) }
+                        .mapTo(nextSearch) { it.build(collected) }
+                }
+
+                if (collected.geode > maxGeodes) {
+                    maxGeodes = collected.geode
+                }
+            }
+
+            search = nextSearch
+        }
+
+        return maxGeodes
     }
+
+
+//    fun crackIt(f: Factory) {
+//
+//        var day = 1
+//        var r = Resources()
+//
+//        var search = List<Plan>
+//    }
 
     fun part1(input: List<String>): Int {
         val data = parseInput(input)
         return data.asSequence()
             .onEach { println("Blueprint $it")}
-            .map { qualityLevel(1, it, Resources()) }
+            .map { runIt(24, it) * it.blueprint }
             .onEach { println(it) }
             .sum()
     }
