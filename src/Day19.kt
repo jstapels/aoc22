@@ -22,6 +22,7 @@ abstract class Plan {
     abstract fun build(r: Resources): Resources
     abstract fun collect(r: Resources): Resources
 
+    open fun shouldBuild(r: Resources, f: Factory, ml: Int) = true
 }
 
 
@@ -31,18 +32,26 @@ data class OrePlan(val ore: Int): Plan() {
     override fun build(r: Resources) = r.copy(ore = r.ore - ore, oreRate = r.oreRate + 1)
     override fun collect(r: Resources) = r.copy(ore = r.ore + 1)
 
+    override fun shouldBuild(r: Resources, f: Factory, ml: Int) =
+        r.ore < (maxOf(f.orePlan.ore, f.geodePlan.ore, f.obsPlan.ore, f.clayPlan.ore) - r.oreRate) * ml
 }
 
 data class ClayPlan(val ore: Int): Plan() {
     override fun canBuild(r: Resources) = r.ore >= ore
     override fun build(r: Resources) = r.copy(ore = r.ore - ore, clayRate = r.clayRate + 1)
     override fun collect(r: Resources) = r.copy(clay = r.clay + 1)
+
+    override fun shouldBuild(r: Resources, f: Factory, ml: Int) =
+        r.clay < (f.obsPlan.clay - r.clayRate) * ml
 }
 
 data class ObsidianPlan(val ore: Int, val clay: Int): Plan() {
     override fun canBuild(r: Resources) = r.ore >= ore && r.clay >= clay
     override fun build(r: Resources) = r.copy(ore = r.ore - ore, clay = r.clay - clay, obsRate = r.obsRate + 1)
     override fun collect(r: Resources) = r.copy(obs = r.obs + 1)
+
+    override fun shouldBuild(r: Resources, f: Factory, ml: Int) =
+        r.obs < (f.geodePlan.obsidian - r.obsRate) * ml
 }
 
 data class GeodePlan(val ore: Int, val obsidian: Int): Plan() {
@@ -91,27 +100,25 @@ fun main() {
         val visited = mutableSetOf<Resources>()
         var maxGeodes = 0
 
-        val otherPlans = f.plans.reversed().drop(1)
-
         (1..mins).forEach { m ->
             val nextSearch = mutableListOf<Resources>()
 
             while (search.isNotEmpty()) {
                 val r = search.removeFirst()
 
-                if ((r.geode + r.geodeRate) < maxGeodes) continue
+                // Not good enough
+                if (r.geode + r.geodeRate + 2 < maxGeodes) continue
+
+                // Been there done that
                 if (r in visited) continue
                 visited.add(r)
 
                 val collected = r.tick()
 
-                if (f.geodePlan.canBuild(r)) {
-                    nextSearch.add(f.geodePlan.build(collected))
-                } else {
-                    otherPlans
-                        .filter { it.canBuild(r) }
-                        .mapTo(nextSearch) { it.build(collected) }
-                }
+                f.plans
+                    .reversed()
+                    .filter { it.canBuild(r) && it.shouldBuild(r, f, mins - m) }
+                    .mapTo(nextSearch) { it.build(collected) }
 
                 if (collected.geode > maxGeodes) {
                     maxGeodes = collected.geode
@@ -125,32 +132,25 @@ fun main() {
     }
 
 
-//    fun crackIt(f: Factory) {
-//
-//        var day = 1
-//        var r = Resources()
-//
-//        var search = List<Plan>
-//    }
-
-    fun part1(input: List<String>): Int {
-        val data = parseInput(input)
-        return data.asSequence()
+    fun part1(input: List<String>) =
+        parseInput(input).asSequence()
             .onEach { println("Blueprint $it")}
             .map { runIt(24, it) * it.blueprint }
             .onEach { println(it) }
             .sum()
-    }
 
-    fun part2(input: List<String>): Int {
-        val data = parseInput(input)
-        return 1
-    }
+    fun part2(input: List<String>) =
+        parseInput(input).asSequence()
+            .take(3)
+            .onEach { println("Blueprint $it")}
+            .map { runIt(32, it) }
+            .onEach { println(it) }
+            .fold(1) { a, v -> a * v}
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day${day.pad(2)}_test")
     checkTest(33) { part1(testInput) }
-    checkTest(1) { part2(testInput) }
+    checkTest(3472) { part2(testInput) }
 
     val input = readInput("Day${day.pad(2)}")
     solution { part1(input) }
