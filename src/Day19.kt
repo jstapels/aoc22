@@ -186,7 +186,7 @@ fun main() {
         val best = possibleNext.maxOfOrNull {
             val minsNeeded = it.minsNeeded(r).coerceAtLeast(0)
 
-            // fast forward
+            // fast-forward
             var nextR = r.tick()
             var m = 1
             while (m < minsNeeded && m < mins) {
