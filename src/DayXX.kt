@@ -1,6 +1,6 @@
 
 fun main() {
-    val day = null
+    val day = throw IllegalStateException()
 
     fun parseInput(input: List<String>) =
         input
@@ -14,8 +14,6 @@ fun main() {
         val data = parseInput(input)
         return 1
     }
-
-    if (day == null) throw IllegalStateException()
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day${day.pad(2)}_test")
