@@ -3,6 +3,8 @@ import java.math.BigInteger
 import java.security.MessageDigest
 import kotlin.system.measureTimeMillis
 
+const val debug = false
+
 fun Int.pad(n: Int) =
     this.toString().padStart(n, '0')
 
@@ -43,4 +45,8 @@ fun <T> solution(runner: () -> T) {
     val ms = measureTimeMillis { result = runner() }
     println("--------------------------------")
     println("Solution ${solutionCount++} in $ms ms | $result")
+}
+
+fun debug(s: Any) {
+    if (debug) println(s)
 }
