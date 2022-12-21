@@ -23,6 +23,8 @@ abstract class Plan {
     abstract fun collect(r: Resources): Resources
 
     open fun shouldBuild(r: Resources, f: Factory, ml: Int) = true
+
+    open fun minsNeeded(r: Resources) = 0
 }
 
 
@@ -34,6 +36,9 @@ data class OrePlan(val ore: Int): Plan() {
 
     override fun shouldBuild(r: Resources, f: Factory, ml: Int) =
         r.ore < (maxOf(f.orePlan.ore, f.geodePlan.ore, f.obsPlan.ore, f.clayPlan.ore) - r.oreRate) * ml
+
+    override fun minsNeeded(r: Resources) =
+        ((ore - r.ore) + r.oreRate - 1) / r.oreRate
 }
 
 data class ClayPlan(val ore: Int): Plan() {
@@ -43,6 +48,9 @@ data class ClayPlan(val ore: Int): Plan() {
 
     override fun shouldBuild(r: Resources, f: Factory, ml: Int) =
         r.clay < (f.obsPlan.clay - r.clayRate) * ml
+
+    override fun minsNeeded(r: Resources) =
+        ((ore - r.ore) + r.oreRate - 1) / r.oreRate
 }
 
 data class ObsidianPlan(val ore: Int, val clay: Int): Plan() {
@@ -51,13 +59,21 @@ data class ObsidianPlan(val ore: Int, val clay: Int): Plan() {
     override fun collect(r: Resources) = r.copy(obs = r.obs + 1)
 
     override fun shouldBuild(r: Resources, f: Factory, ml: Int) =
-        r.obs < (f.geodePlan.obsidian - r.obsRate) * ml
+        r.obs < (f.geodePlan.obs - r.obsRate) * ml
+
+    override fun minsNeeded(r: Resources) =
+        maxOf(((ore - r.ore) + r.oreRate - 1) / r.oreRate,
+            ((clay - r.clay) + r.clayRate - 1) / r.clayRate)
 }
 
-data class GeodePlan(val ore: Int, val obsidian: Int): Plan() {
-    override fun canBuild(r: Resources) = r.ore >= ore && r.obs >= obsidian
-    override fun build(r: Resources) = r.copy(ore = r.ore - ore, obs = r.obs - obsidian, geodeRate = r.geodeRate + 1)
+data class GeodePlan(val ore: Int, val obs: Int): Plan() {
+    override fun canBuild(r: Resources) = r.ore >= ore && r.obs >= obs
+    override fun build(r: Resources) = r.copy(ore = r.ore - ore, obs = r.obs - obs, geodeRate = r.geodeRate + 1)
     override fun collect(r: Resources) = r.copy(obs = r.obs + 1)
+
+    override fun minsNeeded(r: Resources) =
+        maxOf(((ore - r.ore) + r.oreRate - 1) / r.oreRate,
+            ((obs - r.obs) + r.obsRate - 1) / r.obsRate)
 }
 
 data class NoPlan(val ore: Int = 0): Plan() {
@@ -132,10 +148,70 @@ fun main() {
     }
 
 
+    var bestSoFar = 0
+    fun buildIt(mins: Int, f: Factory, r: Resources = Resources()): Int {
+        val plans = listOf(f.geodePlan, f.obsPlan, f.clayPlan, f.orePlan)
+
+//        println("Mins ${25-mins} -> $r")
+
+        if (mins <= 1) {
+            val geodes = r.tick().geode
+            if (geodes > bestSoFar) println("New best!! Min ${25-mins} $r")
+            bestSoFar = bestSoFar.coerceAtLeast(geodes)
+            return geodes
+        }
+
+        val possibleNext = plans.filter {
+            when (it) {
+                is GeodePlan -> {
+                    (mins * r.obsRate) > it.obs &&
+                            (mins * r.oreRate) > it.ore
+                }
+                is ObsidianPlan -> {
+                    (mins * r.clayRate) > it.clay &&
+                            (mins * r.oreRate) > it.ore &&
+                            f.geodePlan.obs > r.obsRate
+                }
+                is ClayPlan -> {
+                    (mins * r.oreRate) > it.ore &&
+                            f.obsPlan.clay > r.clayRate
+                }
+                else -> {
+                    maxOf(f.geodePlan.ore, f.obsPlan.ore, f.clayPlan.ore, f.orePlan.ore) > r.oreRate
+                }
+            }
+        }
+
+        // builds
+        val best = possibleNext.maxOfOrNull {
+            val minsNeeded = it.minsNeeded(r).coerceAtLeast(0)
+
+            // fast forward
+            var nextR = r.tick()
+            var m = 1
+            while (m < minsNeeded && m < mins) {
+                m++
+                nextR = nextR.tick()
+            }
+
+            if (m == minsNeeded && m < mins) {
+                nextR = it.build(nextR)
+                buildIt(mins - m, f, nextR)
+            } else {
+                nextR.geode
+            }
+        } ?: r.tick().geode
+
+        if (best > bestSoFar) println("New best!! Min ${25-mins} $r")
+        bestSoFar = bestSoFar.coerceAtLeast(best)
+        return best
+    }
+
+
     fun part1(input: List<String>) =
         parseInput(input).asSequence()
             .onEach { println("Blueprint $it")}
-            .map { runIt(24, it) * it.blueprint }
+            .map { buildIt(24, it) * it.blueprint }
             .onEach { println(it) }
             .sum()
 
