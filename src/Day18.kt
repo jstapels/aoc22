@@ -1,5 +1,5 @@
 
-data class Cube(val x: Int, val y:Int, val z:Int) {
+private data class Cube(val x: Int, val y:Int, val z:Int) {
     val adjacents get() = listOf(
         Cube(x - 1, y, z),
         Cube(x + 1, y, z),
@@ -10,7 +10,7 @@ data class Cube(val x: Int, val y:Int, val z:Int) {
     )
 }
 
-typealias Grid = MutableMap<Int, MutableMap<Int, MutableMap<Int, Cube>>>
+private typealias Grid = MutableMap<Int, MutableMap<Int, MutableMap<Int, Cube>>>
 
 
 fun main() {

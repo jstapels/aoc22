@@ -43,7 +43,6 @@ var solutionCount = 1
 fun <T> solution(runner: () -> T) {
     var result: T
     val ms = measureTimeMillis { result = runner() }
-    println("--------------------------------")
     println("Solution ${solutionCount++} in $ms ms | $result")
 }
 
