@@ -20,24 +20,24 @@ fun main() {
 
     data class Cmd(val dir: String, val len: Int)
 
-    data class Pos(val x: Int, val y: Int) {
+    data class Coord(val x: Int, val y: Int) {
         fun move(cmd: Cmd) = when (cmd.dir) {
-            "U" -> Pos(x, y + cmd.len)
-            "D" -> Pos(x, y - cmd.len)
-            "L" -> Pos(x - cmd.len, y)
-            "R" -> Pos(x + cmd.len, y)
+            "U" -> Coord(x, y + cmd.len)
+            "D" -> Coord(x, y - cmd.len)
+            "L" -> Coord(x - cmd.len, y)
+            "R" -> Coord(x + cmd.len, y)
             else -> throw IllegalArgumentException("Unrecognized cmd: $cmd")
         }
 
-        fun tail(head: Pos): Pos {
+        fun tail(head: Coord): Coord {
             if (distance(head) <= 1) return this
             val dx = (head.x - x).coerceIn(-1, 1)
             val dy = (head.y - y).coerceIn(-1, 1)
-            return Pos(x + dx, y + dy)
+            return Coord(x + dx, y + dy)
         }
 
-        fun distance(pos: Pos) =
-            maxOf((x - pos.x).absoluteValue, (y - pos.y).absoluteValue)
+        fun distance(coord: Coord) =
+            maxOf((x - coord.x).absoluteValue, (y - coord.y).absoluteValue)
 
     }
 
@@ -46,8 +46,8 @@ fun main() {
             .map { (d, l) -> Cmd(d, l.toInt()) }
 
     fun follow(cmds: List<Cmd>, size:Int): Int {
-        val knots = MutableList(size) { _ -> Pos(0, 0) }
-        val locs = mutableSetOf(Pos(0, 0))
+        val knots = MutableList(size) { _ -> Coord(0, 0) }
+        val locs = mutableSetOf(Coord(0, 0))
 
         cmds.flatMap { c -> (1..c.len).map { Cmd(c.dir, 1) } }
             .forEach { cmd -> knots.indices

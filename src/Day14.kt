@@ -1,44 +1,42 @@
-import java.util.*
-
 fun main() {
     val day = 14
 
-    data class Pos(val x: Int, val y: Int) {
-        fun to(end: Pos): List<Pos> {
+    data class Coord(val x: Int, val y: Int) {
+        fun to(end: Coord): List<Coord> {
             val minX = minOf(x, end.x)
             val minY = minOf(y, end.y)
             val maxX = maxOf(x, end.x)
             val maxY = maxOf(y, end.y)
 
             return (minX..maxX).flatMap { nx ->
-                (minY..maxY).map { ny -> Pos(nx, ny) }
+                (minY..maxY).map { ny -> Coord(nx, ny) }
             }
         }
 
-        val left get() = Pos(this.x - 1, this.y + 1)
-        val right get() = Pos(this.x + 1, this.y + 1)
+        val left get() = Coord(this.x - 1, this.y + 1)
+        val right get() = Coord(this.x + 1, this.y + 1)
     }
 
     fun String.toPos() =
         this.split(",")
-            .let { Pos(it[0].toInt(), it[1].toInt()) }
+            .let { Coord(it[0].toInt(), it[1].toInt()) }
 
-    fun List<List<Char>>.fallTo(p: Pos, height: Boolean = false): Pos? {
+    fun List<List<Char>>.fallTo(p: Coord, height: Boolean = false): Coord? {
         var y = p.y + 1
         val col = this[p.x];
         return (y until col.size).firstOrNull { col[it] != '.'}
-            ?.let { Pos(p.x, it - 1) }
-            ?: if (height) Pos(p.x, col.size - 1) else null
+            ?.let { Coord(p.x, it - 1) }
+            ?: if (height) Coord(p.x, col.size - 1) else null
     }
 
-    fun List<List<Char>>.notBlocked(p: Pos) =
+    fun List<List<Char>>.notBlocked(p: Coord) =
         p.x < this.size && p.y < this[p.x].size && this[p.x][p.y] == '.'
 
-    fun List<MutableList<Char>>.sand(p: Pos) =
+    fun List<MutableList<Char>>.sand(p: Coord) =
         this[p.x].set(p.y, 'o')
 
     fun MutableList<MutableList<Char>>.pourSand(height: Boolean = false): Int {
-        val start = Pos(500, -1)
+        val start = Coord(500, -1)
         var sand = 0
         var cur = this.fallTo(start, height)
         while (cur != start) {

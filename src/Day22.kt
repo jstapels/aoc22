@@ -4,7 +4,6 @@ const val down = 1
 const val left = 2
 const val up = 3
 
-private data class Pos(val x: Int, val y: Int)
 private data class Row(val offset: Int, val path: List<Char>)
 
 private data class Map(val rows: List<Row>) {

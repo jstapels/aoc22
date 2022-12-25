@@ -1,10 +1,10 @@
 
 fun main() {
 
-    data class Pos(val row: Int, val col: Int)
+    data class Coord(val row: Int, val col: Int)
 
-    fun List<List<Char>>.get(pos: Pos) = this[pos.row][pos.col]
-    fun List<List<Char>>.height(pos: Pos) =
+    fun List<List<Char>>.get(pos: Coord) = this[pos.row][pos.col]
+    fun List<List<Char>>.height(pos: Coord) =
         this[pos.row][pos.col]
             .let { when (it) {
                 'S' -> 'a'
@@ -16,7 +16,7 @@ fun main() {
         map.flatMapIndexed { row, line ->
             line.withIndex()
                 .filter { it.value == ch }
-                .map { (col, _) -> Pos(row, col) }
+                .map { (col, _) -> Coord(row, col) }
         }.first()
 
     fun parseInput(input: List<String>) =
@@ -31,23 +31,23 @@ fun main() {
             }}
         }
 
-    fun adjacents(map: List<List<Char>>, pos: Pos): List<Pos> {
+    fun adjacents(map: List<List<Char>>, pos: Coord): List<Coord> {
         val maxCol = map[0].size - 1
         val maxRow = map.size - 1
-        val up = Pos(pos.row - 1, pos.col)
-        val down = Pos(pos.row + 1, pos.col)
-        val left = Pos(pos.row, pos.col - 1)
-        val right = Pos(pos.row, pos.col + 1)
+        val up = Coord(pos.row - 1, pos.col)
+        val down = Coord(pos.row + 1, pos.col)
+        val left = Coord(pos.row, pos.col - 1)
+        val right = Coord(pos.row, pos.col + 1)
         val valid = map.height(pos) + 1
 
-        val isValid = { p: Pos -> p.row in (0.. maxRow) && p.col in (0..maxCol) && map.height(p) <= valid }
+        val isValid = { p: Coord -> p.row in (0.. maxRow) && p.col in (0..maxCol) && map.height(p) <= valid }
 
         return listOf(up, down, left, right)
             .filter { isValid(it) }
     }
     
-    fun bfs(map: List<List<Char>>, start: Pos): List<Pos> {
-        val parents = mutableMapOf<Pos, Pos>()
+    fun bfs(map: List<List<Char>>, start: Coord): List<Coord> {
+        val parents = mutableMapOf<Coord, Coord>()
         val explored = mutableListOf(start)
         val search = mutableListOf(start)
 

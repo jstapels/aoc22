@@ -1,17 +1,15 @@
 
 fun main() {
 
-    data class Pos(val row: Int, val col: Int)
-
     fun getCol(nums: List<List<Int>>, col: Int) =
         nums.indices.map { nums[it][col] }
 
     fun visible(trees: List<List<Int>>, pos: Pos) =
-        { h:Int -> h < trees[pos.row][pos.col] }.let {
-            trees[pos.row].take(pos.col).all(it) ||
-                    trees[pos.row].takeLast(trees[pos.row].size - pos.col - 1).all(it) ||
-                    getCol(trees, pos.col).take(pos.row).all(it) ||
-                    getCol(trees, pos.col).takeLast(trees[pos.row].size - pos.row - 1).all(it)
+        { h:Int -> h < trees[pos.y][pos.x] }.let {
+            trees[pos.y].take(pos.x).all(it) ||
+                    trees[pos.y].takeLast(trees[pos.y].size - pos.x - 1).all(it) ||
+                    getCol(trees, pos.x).take(pos.y).all(it) ||
+                    getCol(trees, pos.x).takeLast(trees[pos.y].size - pos.y - 1).all(it)
         }
 
     fun parseInput(input: List<String>) =
@@ -20,7 +18,7 @@ fun main() {
     fun part1(input: List<String>): Int {
         val trees = parseInput(input)
         return trees.indices
-            .flatMap { row -> trees[row].indices.map { col -> Pos(row, col) } }
+            .flatMap { row -> trees[row].indices.map { col -> Pos(col, row) } }
             .count { visible(trees, it) }
     }
 
@@ -29,7 +27,7 @@ fun main() {
             .let { if (it == -1) trees.size else it + 1 }
 
     fun scenic(trees: List<List<Int>>, pos: Pos): Int {
-        val (row, col) = pos
+        val (col, row) = pos
         val height = trees[row][col]
         val maxRow = trees.size - 1
         val maxCol = trees[0].size - 1
@@ -43,7 +41,7 @@ fun main() {
     fun part2(input: List<String>): Int {
         val trees = parseInput(input)
         return trees.indices
-            .flatMap { row -> trees[row].indices.map { col -> Pos(row, col) } }
+            .flatMap { row -> trees[row].indices.map { col -> Pos(col, row) } }
             .maxOf { scenic(trees, it) }
     }
 

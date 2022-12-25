@@ -5,6 +5,14 @@ import kotlin.system.measureTimeMillis
 
 const val debug = false
 
+data class Pos(val x: Int, val y: Int) {
+    operator fun plus(p: Pos) =
+        Pos(x + p.x, y + p.y)
+}
+
+infix fun Int.by(that: Int) = Pos(this, that)
+
+
 fun Int.pad(n: Int) =
     this.toString().padStart(n, '0')
 

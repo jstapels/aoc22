@@ -2,14 +2,14 @@
 fun main() {
     val day = 17
 
-    data class Pos(val x: Int, val y: Long)
+    data class Coord(val x: Int, val y: Long)
 
-    infix fun Int.by(that: Int) = Pos(this, that.toLong())
+    infix fun Int.by(that: Int) = Coord(this, that.toLong())
 
-    infix fun Int.by(that: Long) = Pos(this, that)
+    infix fun Int.by(that: Long) = Coord(this, that)
 
-    data class Rock(val shape: List<Pos>) {
-        fun coords(pos: Pos) =
+    data class Rock(val shape: List<Coord>) {
+        fun coords(pos: Coord) =
             shape.map { pos.x + it.x by pos.y + it.y }
     }
 
@@ -23,11 +23,11 @@ fun main() {
 
     val window = 100000
 
-    fun List<Int>.free(rock: Rock, pos: Pos) =
+    fun List<Int>.free(rock: Rock, pos: Coord) =
         rock.coords(pos)
             .all { it.y >= 0 && it.x >= 0 && it.x < 7 && (this[(it.y % window).toInt()] and (1 shl it.x)) == 0 }
 
-    fun MutableList<Int>.apply(rock: Rock, pos: Pos) =
+    fun MutableList<Int>.apply(rock: Rock, pos: Coord) =
         rock.coords(pos)
             .forEach {
                 this[(it.y % window).toInt()] = this[(it.y % window).toInt()] or (1 shl it.x)

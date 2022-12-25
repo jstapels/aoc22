@@ -1,13 +1,6 @@
 
 fun main() {
 
-    data class Pos(val x: Int, val y: Int) {
-        operator fun plus(p: Pos) =
-            Pos(x + p.x, y + p.y)
-    }
-
-    infix fun Int.by(that: Int) = Pos(this, that)
-
     data class Dir(val dir: String, val offset: Pos, val checks: List<Pos>) {
         fun valid(pos: Pos, used: Set<Pos>) =
             checks.map { pos + it }
