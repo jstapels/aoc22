@@ -1,12 +1,47 @@
+import java.util.concurrent.atomic.AtomicInteger
+
+private data class Valve(val id: String, val rate: Int, val tunnels: List<String>)
+
+private val routes = mutableMapOf<Set<String>, Int>()
+private fun Map<String, Valve>.calcRouteCost(start: String, end: String): Int {
+    val nodes = setOf(start, end)
+    if (nodes in routes) return routes[nodes]!!
+
+    val parents = mutableMapOf<String, String>()
+    val explored = mutableSetOf(start)
+    val search = mutableListOf(start)
+
+    while (search.isNotEmpty()) {
+        val node = search.removeFirst()
+
+        if (node == end) {
+            var distance = 0
+            var n = node
+            while (n != start) {
+                distance++
+                n = parents[n]!!
+            }
+
+            routes[nodes] = distance
+            return distance
+        }
+
+        getValue(node).tunnels.forEach {
+            if (it !in explored) {
+                explored.add(it)
+                search.add(it)
+                parents[it] = node
+            }
+        }
+    }
+
+    throw IllegalStateException()
+}
+
+private data class Worker(val name: String, val minutes: Int = 30, val valve: String = "AA")
 
 fun main() {
     val day = 16
-
-    data class Valve(
-        val id: String,
-        val rate: Int,
-        val tunnels: List<String>
-    )
 
     fun parseValve(line: String): Valve {
         val re = """Valve (\w+) has flow rate=(\d+); tunnels? leads? to valves? (.*)""".toRegex()
@@ -22,140 +57,87 @@ fun main() {
         input.map { parseValve(it) }
             .associateBy { it.id }
 
-    fun Map<String, Valve>.calcRouteCost(start: String, end: String): Int {
-        val parents = mutableMapOf<String, String>()
-        val explored = mutableSetOf(start)
-        val search = mutableListOf(start)
-
-        while (search.isNotEmpty()) {
-            val node = search.removeFirst()
-
-            if (node == end) {
-                var distance = 0
-                var n = node
-                while (n != start) {
-                    distance++
-                    n = parents[n]!!
-                }
-                return distance
-            }
-
-            getValue(node).tunnels.forEach {
-                if (it !in explored) {
-                    explored.add(it)
-                    search.add(it)
-                    parents[it] = node
-                }
-            }
+    fun Map<String, Valve>.potential(workers: List<Worker>, remaining: Set<String>): Int {
+        var potential = workers.sumOf { (it.minutes - 1) * this[it.valve]!!.rate }
+        remaining.forEach { v ->
+            val pressure = workers.maxOf { (it.minutes - 1 - calcRouteCost(it.valve, v)) * this[v]!!.rate }
+            if (pressure > 0) potential += pressure
         }
 
-        throw IllegalStateException()
+        return potential
     }
 
-    fun Map<String, Valve>.valvesLeft(valve: String, checked: Set<String>) =
-        this.values
-            .asSequence()
-            .filter { it.rate > 0 }
+    fun Map<String, Valve>.usefulValves() =
+        values.filter { it.rate >0 }
             .map { it.id }
-            .filter { it !in checked }
-            .toList()
+            .toSet()
 
+    fun Map<String, Valve>.calcPressure(workers: List<Worker>, remaining: Set<String> = usefulValves(), pressureSoFar: Int = 0, best: AtomicInteger = AtomicInteger(0)): Int {
+        if (workers.isEmpty()) return pressureSoFar
 
-    fun Map<String, Valve>.pressure(valve: String, minutes: Int = 30, visited: Set<String> = emptySet()): Pair<List<String>, Int> {
-        // No time left
-        if (minutes <= 1) return listOf(valve) to 0
-
-        val checked = visited + valve
-
-        // Hit all nodes
-        val valvesLeft = valvesLeft(valve, checked)
-
-        val myPressure = this[valve]!!.rate * (minutes - 1)
-
-        val openTime = if (myPressure > 0) 1 else 0
-
-        val otherPressure = valvesLeft
-            .map { pressure(it, minutes - openTime - calcRouteCost(valve, it), checked) }
-            .maxByOrNull { it.second } ?: return listOf(valve) to myPressure
-
-        return listOf(valve) + otherPressure.first to myPressure + otherPressure.second
-    }
-
-    fun part1(input: List<String>): Int {
-        val valves = parseInput(input)
-
-        val me = valves.pressure("AA", 30)
-        println("Me - $me")
-
-        return me.second
-    }
-
-    data class Worker(val name: String, val valve: String = "AA", val minutes: Int = 26)
-
-    fun Map<String, Valve>.pressure2(workers: List<Worker>, visited: Set<String> = emptySet()): Pair<List<String>, Int> {
-
+        // Pick next worker by minutes left
         val worker = workers.maxBy { it.minutes }
-        val workersLeft = workers - worker
+        val otherWorkers = workers - worker
 
         val name = worker.name
         val valve = worker.valve
         val minutes = worker.minutes
 
-//        println("Checking $name ($minutes) @ $valve [$visited | $workers]")
-
         // No time left
-        if (minutes <= 1) return listOf(valve) to 0
-
-        val checking = visited + workers.map { it.valve }
-
-        // Hit all nodes
-        val valvesLeft = valvesLeft(valve, checking)
+        if (minutes <= 1) return pressureSoFar
 
         val myPressure = this[valve]!!.rate * (minutes - 1)
-        val openTime = if (myPressure > 0) 1 else 0
+        val pressure = myPressure + pressureSoFar
 
-        if (valvesLeft.isEmpty()) {
-            val otherWorker = workersLeft.first()
-            val otherValve = otherWorker.valve
-            if (otherValve !in visited) {
-                // One node left, who has more value
-                val meDoingIt = minutes - 1 - calcRouteCost(valve, otherValve)
-                val otherMins = otherWorker.minutes
-                val otherPressure = maxOf(meDoingIt, this[otherValve]!!.rate * (otherMins - 1))
-                return listOf(valve, otherValve) to myPressure + otherPressure
-            }
+        if (remaining.isEmpty()) {
+            return calcPressure(otherWorkers, remaining, pressure, best)
         }
 
-        val otherPressure = valvesLeft
-            .map {
-                val timeLeft = minutes - openTime - calcRouteCost(valve, it)
-                val newWorker = Worker(name, it, timeLeft)
-                val p = pressure2(workersLeft + newWorker, checking)
-                if (minutes == 26) { println("Checking $name($valve) -> $it == $p") }
-                p
-            }
-            .maxByOrNull { it.second } ?: return (listOf(valve) to myPressure)
+        val possiblePressure = pressureSoFar + potential(workers, remaining)
+        if (possiblePressure < best.get()) {
+            return pressure
+        }
 
-        return listOf(valve) + otherPressure.first to myPressure + otherPressure.second
+        val openTime = if (myPressure > 0) 1 else 0
+        val bestPressure = remaining.sortedByDescending { (minutes - 2 - calcRouteCost(valve, it)) * this[it]!!.rate }
+            .maxOf {
+            val timeLeft = minutes - openTime - calcRouteCost(valve, it)
+            val newWorker = Worker(name, timeLeft, it)
+            val p = calcPressure(otherWorkers + newWorker, remaining - it, pressure, best)
+            p
+        }
+
+        if (bestPressure > best.get()) {
+            best.set(bestPressure)
+//            println("New best pressure $bestPressure")
+        }
+
+        return bestPressure
+    }
+
+    fun part1(input: List<String>): Int {
+        val valves = parseInput(input)
+
+        val me = Worker("Me")
+        val out = valves.calcPressure(listOf(me))
+
+        return out
     }
 
     fun part2(input: List<String>): Int {
         val valves = parseInput(input)
 
-        val me = Worker("Me")
-        val elephant = Worker("Elephant")
-        val out = valves.pressure2(listOf(me, elephant))
+        val me = Worker("Me", 26)
+        val elephant = Worker("Elephant", 26)
+        val out = valves.calcPressure(listOf(me, elephant))
 
-        println("Out - $out")
-
-        return out.second
+        return out
     }
-
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day${day.pad(2)}_test")
     checkTest(1651) { part1(testInput) }
-    checkTest(1706) { part2(testInput) }
+    checkTest(1707) { part2(testInput) }
 
     val input = readInput("Day${day.pad(2)}")
     solution { part1(input) }
